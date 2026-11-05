@@ -1,0 +1,101 @@
+.pele {
+  --pele-font: Pstack Sans;
+  --pele-font-mono: Pstack Mono;
+  --pele-bg: #fcfcfd;
+  --pele-fg: #1c2024;
+  --pele-muted: #60646c;
+  --pele-line: #60646c;
+  --pele-surface: #f0f0f3;
+  --pele-surface-alt: #e8e8ec;
+  --pele-border: #7e808a;
+  --pele-accent: #0d74ce;
+  --pele-radius: 5px;
+  --pele-bold-weight: 500;
+  --pele-heading-weight: 500;
+  --pele-title-weight: 500;
+  --phase-blue: #d5eaff;
+  --phase-teal: #c8f4e9;
+  --phase-purple: #e7defc;
+  --phase-yellow: #fff0b3;
+  --phase-orange: #ffe0c2;
+  --phase-tan: #eaddcf;
+  --phase-pink: #fbdcef;
+  --violation: #c62a35;
+  --violation-text: #ffffff;
+  --possible-fill: #fff1db;
+  --possible-line: #a75b00;
+  --possible-text: #6b3a00;
+  --repeat-line: #7844bd;
+}
+.pele[data-appearance="dark"] {
+  --pele-bg: #111113;
+  --pele-fg: #edeef0;
+  --pele-muted: #b0b4ba;
+  --pele-line: #b0b4ba;
+  --pele-surface: #202124;
+  --pele-surface-alt: #272a2d;
+  --pele-border: #697079;
+  --pele-accent: #70b8ff;
+  --phase-blue: #193b5c;
+  --phase-teal: #153f37;
+  --phase-purple: #352950;
+  --phase-yellow: #463a19;
+  --phase-orange: #4a301e;
+  --phase-tan: #3c332c;
+  --phase-pink: #46283e;
+  --possible-fill: #4d2d00;
+  --possible-line: #db9a42;
+  --possible-text: #ffd8a8;
+  --repeat-line: #c49bff;
+}
+@media (prefers-color-scheme: dark) {
+  .pele[data-appearance="auto"] {
+    --pele-bg: #111113;
+    --pele-fg: #edeef0;
+    --pele-muted: #b0b4ba;
+    --pele-line: #b0b4ba;
+    --pele-surface: #202124;
+    --pele-surface-alt: #272a2d;
+    --pele-border: #697079;
+    --pele-accent: #70b8ff;
+    --phase-blue: #193b5c;
+    --phase-teal: #153f37;
+    --phase-purple: #352950;
+    --phase-yellow: #463a19;
+    --phase-orange: #4a301e;
+    --phase-tan: #3c332c;
+    --phase-pink: #46283e;
+    --possible-fill: #4d2d00;
+    --possible-line: #db9a42;
+    --possible-text: #ffd8a8;
+    --repeat-line: #c49bff;
+  }
+}
+.pele .pele-cluster > rect { fill: var(--pele-surface-alt); stroke: var(--pele-border); }
+.pele .blue > rect { fill: var(--phase-blue); }
+.pele .teal > rect { fill: var(--phase-teal); }
+.pele .purple > rect { fill: var(--phase-purple); }
+.pele .yellow > rect { fill: var(--phase-yellow); }
+.pele .orange > rect { fill: var(--phase-orange); }
+.pele .tan > rect { fill: var(--phase-tan); }
+.pele .pink > rect { fill: var(--phase-pink); }
+.pele .breaks > rect {
+  fill: var(--violation) !important;
+  stroke: var(--violation) !important;
+  stroke-width: 2.5px !important;
+}
+.pele .breaks > text { fill: var(--violation-text) !important; }
+.pele .mayBreak > rect {
+  fill: var(--possible-fill) !important;
+  stroke: var(--possible-line) !important;
+  stroke-width: 2.5px !important;
+}
+.pele .mayBreak > text { fill: var(--possible-text) !important; }
+.pele .bugPath > rect { stroke: var(--pele-accent) !important; stroke-width: 2.5px !important; }
+.pele .repeats > rect {
+  stroke: var(--repeat-line) !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 6 3 !important;
+}
+
+.pele .pele-state > rect { rx: 5px; }

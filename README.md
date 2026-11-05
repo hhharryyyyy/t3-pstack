@@ -9,12 +9,22 @@ t3-pstack works only inside T3.
 ## Install, update, and check
 
 ```shell
-npx -y github:chhoumann/t3-pstack install
-npx -y github:chhoumann/t3-pstack update
-npx -y github:chhoumann/t3-pstack doctor
+npx -y github:hhharryyyyy/t3-pstack install --source hhharryyyyy/t3-pstack
+npx -y github:hhharryyyyy/t3-pstack update --source hhharryyyyy/t3-pstack
+npx -y github:hhharryyyyy/t3-pstack doctor --source hhharryyyyy/t3-pstack
 ```
 
-`npx -y github:chhoumann/t3-pstack` runs the installer from the latest commit on `main`. That is the rolling channel, the same one each home's marketplace auto-updates from. To run one release's installer, name its tag, as in `npx -y github:chhoumann/t3-pstack#v2.2.1 doctor`.
+`npx -y github:hhharryyyyy/t3-pstack` runs the installer from the latest commit on `main`. This is Harry's personal fork. Pass `--source hhharryyyyy/t3-pstack` for install, update and doctor so the marketplace stays on the fork. Upstream changes are merged manually. To run one release's installer, name its tag, as in `npx -y github:hhharryyyyy/t3-pstack#v2.2.2-harry.1 doctor --source hhharryyyyy/t3-pstack`.
+
+When migrating an existing upstream installation, remove its marketplace registration first. Removing a marketplace can disable its plugins, so run the fork's installer afterward to restore the enabled installation:
+
+```shell
+claude plugin marketplace remove t3-pstack
+codex plugin marketplace remove t3-pstack
+npx -y github:hhharryyyyy/t3-pstack install --source hhharryyyyy/t3-pstack
+```
+
+Repeat the marketplace removal with `CLAUDE_CONFIG_DIR` or `CODEX_HOME` set when T3 uses another config home. The installer discovers all T3 homes. Its `--source` option permits the fork but does not replace an existing upstream registration.
 
 `install` and `update` are the same command, and a second run changes nothing. With Node 20 or later, it installs or updates the `t3-pstack@t3-pstack` plugin in every Claude Code and Codex config home T3 can run: `~/.claude` and `~/.codex`, `$CLAUDE_CONFIG_DIR` and `$CODEX_HOME`, and the home of each `claudeAgent` and `codex` instance in T3's settings, disabled ones included. Name any other home with `--claude-home <dir>` or `--codex-home <dir>`. Each home's `t3-pstack` marketplace must come from `chhoumann/t3-pstack`, or from `--source <owner/repo|git URL|dir>` on the same run, and a home whose marketplace has another source is left as it is. A local directory needs a path such as `./t3-pstack`, since `owner/repo` always means GitHub. On Codex it also trusts t3-pstack's session-start hook, once its hooks file is the one this release pins. Codex runs a plugin's hook only once it is trusted, and T3's Codex sessions never ask, so without this step the hook never runs. Run `update` after each release.
 
