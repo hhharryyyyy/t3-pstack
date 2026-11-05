@@ -2,6 +2,12 @@
 
 This file is the release changelog, with one `## <version> - <title>` entry per release, newest first. The Cursor-to-T3 rewrite rules live in [`tools/substitutions.json`](tools/substitutions.json), and the [sync boundary](CONTRIBUTING.md#the-sync-boundary) in `CONTRIBUTING.md` defines how a change to upstream's skill content is declared.
 
+## 2.2.2-harry.1 - Bundled Balanced statechart theme
+
+- Render statecharts through the bundled font-aware Pele renderer by default.
+- Embed IBM Plex Sans and Mono, support fixed light and dark exports, and preserve all verification marks.
+- Keep the personal rendering reference declared for manual upstream merges.
+
 ## 2.2.1 - setup-pstack's sheet check reads option values the way orchestrator_capabilities lists them
 
 `orchestrator_capabilities` lists each option's values as a plain array, such as `{ "id": "effort", "values": ["low", "medium", "high"] }` and `{ "id": "fastMode", "values": [false, true] }`. `t3-sheet.mjs` read only the `type` and `options: [{ id }]` shape that its fixture uses. Given the live shape, it allowed no values, so setup-pstack's check rejected every option on every line, valid ones included, with `effort=high is not one of` followed by an empty list. The check now reads `values`, compares each one as a string so `fastMode=true` matches a JSON `true`, and still reads the older shape.
