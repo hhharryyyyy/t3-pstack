@@ -8,15 +8,20 @@
 // its command runs. Codex's own trust covers the entry alone, and the script
 // changes with each release, so the marketplace source check is what vouches
 // for the script.
+//
+// Codex 0.164 and later also tie that trust to every file in the plugin, so a
+// release that Codex's own marketplace auto-upgrade installs turns the hook
+// off. So the installer pins a Git marketplace to this release's tag, and only
+// the installer, which trusts the hook again, moves it.
 import { spawn } from "node:child_process";
-import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 
 import { hookDigest } from "../plugin.mjs";
 import {
   check,
   codexSource,
-  INSTALL_HINT,
+  installHint,
   isPlainCopy,
   launch,
   MARKETPLACE,
@@ -25,6 +30,7 @@ import {
   PLUGIN_ID,
   pluginIntact,
   runCli,
+  trustedOnly,
   updated,
 } from "./common.mjs";
 
@@ -132,6 +138,7 @@ async function pluginState(server, dir, skills) {
   const plugin = marketplaces.flatMap((m) => m.plugins ?? []).find((p) => p.id === PLUGIN_ID);
   const versions = installedVersions(dir);
   return {
+    marketplace: config.marketplaces?.[MARKETPLACE],
     sources: marketplaceSources(config),
     installed: plugin?.installed === true,
     enabled: plugin?.enabled === true,
@@ -143,6 +150,16 @@ async function pluginState(server, dir, skills) {
 async function pluginHooks(server) {
   const { data } = await server.request("hooks/list", {});
   return data.flatMap((entry) => entry.hooks).filter((hook) => hook.pluginId === PLUGIN_ID);
+}
+
+// Codex trusts a plugin hook with a hash of every file in the plugin. When it
+// cannot hash them, as with a symlink in the plugin, it lists no hook and
+// says why in a warning that names the plugin's real path.
+async function pluginHookWarnings(server, dir) {
+  if (!existsSync(cacheDir(dir))) return [];
+  const cache = realpathSync(cacheDir(dir));
+  const { data } = await server.request("hooks/list", {});
+  return data.flatMap((entry) => entry.warnings ?? []).filter((warning) => warning.includes(cache));
 }
 
 // A file's text, read once without following a symlink, or null when it is a
@@ -202,7 +219,11 @@ export async function installCodex(home, { source, trusted, version, skills, cod
     before = await state();
   }
   // Nothing installs from a marketplace of another source; doctor names it.
-  if (!marketplaceCheck(before.sources, trusted).ok) return steps;
+  if (!trustedOnly(before.sources, trusted)) return steps;
+  const tag = `v${version}`;
+  if (before.marketplace.source_type === "git" && before.marketplace.ref !== tag) {
+    steps.push(...(await pinMarketplace(home, trusted, tag, () => plugin("marketplace", "upgrade", MARKETPLACE))));
+  }
   const step = codexStep(before, version);
   if (step) {
     // A local marketplace is read in place; a Git one is a snapshot to refresh.
@@ -222,6 +243,41 @@ export async function installCodex(home, { source, trusted, version, skills, cod
   return steps;
 }
 
+// Codex's auto-upgrade moves a Git marketplace only when the hash `git
+// ls-remote` reports for its ref differs from the commit it installed, so a
+// lightweight tag, as each release's is, holds it. The ref is written before
+// `upgrade` makes Codex fetch it, so an app-server that starts in between,
+// such as the installer's own, fetches the tag too. A source without the tag, such as a
+// fork that never pushed it, gets its old ref back and updates as before.
+async function pinMarketplace(home, trusted, tag, upgrade) {
+  const keyPath = `marketplaces.${MARKETPLACE}.ref`;
+  const pinned = await withServer(home, async (server) => {
+    const { config, layers } = await server.request("config/read", { includeLayers: true });
+    if (!trustedOnly(marketplaceSources(config), trusted)) return null;
+    const user = layers.find((layer) => layer.name.type === "user");
+    const written = await server.request("config/value/write", { keyPath, value: tag, mergeStrategy: "replace", expectedVersion: user.version });
+    return { was: config.marketplaces[MARKETPLACE].ref ?? null, version: written.version };
+  });
+  if (!pinned) return [];
+  try {
+    upgrade();
+  } catch (err) {
+    await withServer(home, (server) =>
+      server.request("config/value/write", { keyPath, value: pinned.was, mergeStrategy: "replace", expectedVersion: pinned.version }),
+    );
+    const stays = pinned.was ? `on ${pinned.was}` : "unpinned";
+    return [`Codex could not fetch ${tag}, so the marketplace stays ${stays} (${err.message.split("\n")[0]})`];
+  }
+  return [`pinned the marketplace to ${tag} (was ${pinned.was ?? "unpinned"})`];
+}
+
+// A local directory is read in place and has no tag to pin.
+export function pinCheck(marketplace, tag, hint) {
+  if (marketplace?.source_type === "local") return check("marketplace pin", true, "none, since a local directory has no tag");
+  const ref = marketplace?.ref;
+  return check("marketplace pin", ref === tag, !marketplace ? "no marketplace" : ref === tag ? tag : `${ref ?? "none"}, expected ${tag}`, hint);
+}
+
 // One app-server session checks the marketplace source, lists the hooks, and
 // writes the trust. The write names the config version the source check read,
 // so Codex refuses it when config.toml changed in between. A config write
@@ -231,7 +287,7 @@ export async function installCodex(home, { source, trusted, version, skills, cod
 // entry from any other hooks file stays untrusted, and doctor names it.
 async function trustHooks(server, trusted, pin) {
   const { config, layers } = await server.request("config/read", { includeLayers: true });
-  if (!marketplaceCheck(marketplaceSources(config), trusted).ok) return [];
+  if (!trustedOnly(marketplaceSources(config), trusted)) return [];
   const user = layers.find((layer) => layer.name.type === "user");
   const pending = (await pluginHooks(server)).filter(
     (h) => (h.trustStatus === "untrusted" || h.trustStatus === "modified") && isPinned(h, pin),
@@ -255,16 +311,19 @@ async function trustHooks(server, trusted, pin) {
   return pending.map((h) => `trusted hook ${h.key} (was ${h.trustStatus})`);
 }
 
-export async function doctorCodex(home, { version, skills, trusted, codexHook }) {
+export async function doctorCodex(home, { source, trusted, version, skills, codexHook }) {
+  const hint = installHint(source);
   return withServer(home, async (server) => {
     const state = await pluginState(server, home.dir, skills);
     const hooks = await pluginHooks(server);
+    const warnings = hooks.length ? [] : await pluginHookWarnings(server, home.dir);
     const listed = (await server.request("skills/list", { cwds: [neutralCwd()] })).data.flatMap((entry) => entry.skills);
     const plain = listed.filter((skill) => isPlainCopy(skill.name, skill.path, skills)).map((skill) => skill.path);
     const installed = state.versions.join(", ");
     const good = (h) => h.trustStatus === "trusted" && isPinned(h, codexHook);
     return [
-      marketplaceCheck(state.sources, trusted, `remove it with \`CODEX_HOME=${home.dir} codex plugin marketplace remove ${MARKETPLACE}\``),
+      marketplaceCheck(state.sources, { source, trusted }, `remove it with \`CODEX_HOME=${home.dir} codex plugin marketplace remove ${MARKETPLACE}\``),
+      pinCheck(state.marketplace, `v${version}`, hint),
       check(
         "installed",
         state.installed && installed === version && state.intact,
@@ -275,16 +334,18 @@ export async function doctorCodex(home, { version, skills, trusted, codexHook })
             : state.intact
               ? installed
               : `its files in ${join(cacheDir(home.dir), installed)} are missing`,
-        INSTALL_HINT,
+        hint,
       ),
-      check("enabled", state.enabled, state.enabled ? "yes" : "no", INSTALL_HINT),
+      check("enabled", state.enabled, state.enabled ? "yes" : "no", hint),
       check(
         "session-start hook trusted",
         hooks.length > 0 && hooks.every(good),
         hooks.length
           ? hooks.map((h) => `${h.key} ${h.trustStatus}${isPinned(h, codexHook) ? "" : `, not from the ${codexHook.path} this release pins`}`).join("; ")
-          : "no t3-pstack hook listed",
-        INSTALL_HINT,
+          : ["no t3-pstack hook listed", ...warnings.map((warning) => `Codex: ${warning}`)].join("; "),
+        hooks.some((h) => h.trustStatus === "modified")
+          ? `${hint}; Codex 0.164 and later turn the hook off whenever the plugin's files change, as each update does`
+          : hint,
       ),
       check(
         "no plain copies of plugin skills",

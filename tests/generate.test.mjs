@@ -266,7 +266,7 @@ describe("deriveT3", () => {
 
   test("names the alias a released sheet may still use", () => {
     const out = deriveT3("plugins/pstack/skills/poteto-mode/SKILL.md", front("", "poteto-mode"), models);
-    expect(out).toContain("- hardest tasks: `claudeAgent/claude-fable-5-1 effort=xhigh` (a `strongest judgment` line counts as this role)");
+    expect(out).toContain("- hardest tasks: `claudeAgent/claude-fable-5-2 effort=xhigh` (a `strongest judgment` line counts as this role)");
   });
 
   test("a file no region names passes through", () => {
