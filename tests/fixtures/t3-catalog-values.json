@@ -34,8 +34,8 @@
           ]
         },
         {
-          "id": "claude-fable-5-1",
-          "label": "Claude Fable 5.1",
+          "id": "claude-fable-5-2",
+          "label": "Claude Fable 5.2",
           "options": [{ "id": "effort", "values": ["low", "medium", "high", "xhigh", "max", "ultracode", "ultrathink"], "default": "medium" }]
         }
       ],

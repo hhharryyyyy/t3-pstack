@@ -45,11 +45,11 @@ Overwrite the sheet with the candidate, creating its directory and writing throu
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat's model (`delegate_task` omits `target`). Alias entries in a panel list still count toward its fan-out.
 # budget: large (xhigh)
 feature, refactoring: claudeAgent/claude-opus-5-5 effort=xhigh
-bug-fix: claudeAgent/claude-fable-5-1 effort=xhigh
-perf-issue: claudeAgent/claude-fable-5-1 effort=xhigh
-hillclimb: claudeAgent/claude-fable-5-1 effort=xhigh
+bug-fix: claudeAgent/claude-fable-5-2 effort=xhigh
+perf-issue: claudeAgent/claude-fable-5-2 effort=xhigh
+hillclimb: claudeAgent/claude-fable-5-2 effort=xhigh
 judgment and prose: claudeAgent/claude-opus-5-5 effort=xhigh
-hardest tasks: claudeAgent/claude-fable-5-1 effort=xhigh
+hardest tasks: claudeAgent/claude-fable-5-2 effort=xhigh
 how explorer: claudeAgent/claude-opus-5-5 effort=xhigh
 how explainer: claudeAgent/claude-opus-5-5 effort=xhigh
 why investigators: claudeAgent/claude-opus-5-5 effort=xhigh

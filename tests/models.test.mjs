@@ -55,7 +55,7 @@ describe("parseModels", () => {
 
   test("a single-model tier holds one entry and the panel a list of two families", () => {
     expect(parse((p) => (p.tiers.default = [p.tiers.default]))).toThrow('models.json: tier "default" must be one entry, not a list');
-    expect(parse((p) => (p.tiers.panel = ["claudeAgent/claude-opus-5-5", "claudeAgent/claude-fable-5-1"]))).toThrow(
+    expect(parse((p) => (p.tiers.panel = ["claudeAgent/claude-opus-5-5", "claudeAgent/claude-fable-5-2"]))).toThrow(
       "models.json: the panel needs at least two model families",
     );
     expect(parse((p) => (p.tiers.panel = ["codex/gpt-6.1-sol", "codex/gpt-6.1-sol"]))).toThrow(

@@ -164,7 +164,7 @@ describe("checkSheet against a catalog", () => {
     expect(check(`${PANEL}: inherit-parent, grok/grok-4.7`)).toEqual([
       `${PANEL}: a panel needs at least two model families among its targets (inherit-parent does not count), got grok`,
     ]);
-    expect(check(`${PANEL}: auto, claudeAgent/claude-fable-5-1, grok/grok-4.7`)).toEqual([]);
+    expect(check(`${PANEL}: auto, claudeAgent/claude-fable-5-2, grok/grok-4.7`)).toEqual([]);
   });
 
   test("an option named like an Object prototype key is checked, not dropped", () => {
@@ -191,7 +191,7 @@ describe("checkSheet against a catalog", () => {
   });
 
   test("only a panel role takes a list", () => {
-    expect(check("bug-fix: claudeAgent/claude-fable-5-1, grok/grok-4.7")).toEqual(["bug-fix: takes one entry, not a list"]);
+    expect(check("bug-fix: claudeAgent/claude-fable-5-2, grok/grok-4.7")).toEqual(["bug-fix: takes one entry, not a list"]);
   });
 
   // Upstream renamed the role in 0.15.21. A sheet setup-pstack wrote before
