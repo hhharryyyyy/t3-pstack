@@ -20,11 +20,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { doctorClaude, installClaude, syncScopedRecords } from "../tools/install/claude.mjs";
-import { AppServer } from "../tools/install/codex.mjs";
+import { AppServer, pinCheck } from "../tools/install/codex.mjs";
 import { parseSource, writeAtomic } from "../tools/install/common.mjs";
 import { discoverHomes } from "../tools/install/homes.mjs";
 import { doctorSheet, moveSheet } from "../tools/install/sheet.mjs";
@@ -351,6 +351,53 @@ describe("--source", () => {
     expect(parseSource("https://github.com/chhoumann/t3-pstack", "/home/u").key).toBe(github.key);
     expect(() => parseSource("./missing", cwd)).toThrow("--source ./missing: not owner/repo, a Git URL, or an existing directory");
   });
+
+  test("is in every fix doctor prints, and a GitHub --source runs that repository's installer", () => {
+    const claude = fakeClaude();
+    const doctor = (source) => {
+      const r = spawnSync(process.execPath, [join(repoRoot, "tools/install.mjs"), "doctor", "--source", source, "--json"], {
+        env: { HOME: tmp(), PATH: join(claude.bin, "..") },
+        encoding: "utf8",
+      });
+      return JSON.parse(r.stdout).homes.find((row) => row.harness === "claude").checks;
+    };
+    expect(doctor("someone/t3-pstack")).toEqual([
+      {
+        name: "installed",
+        ok: false,
+        detail: "the home does not exist",
+        fix: "rerun `npx -y github:someone/t3-pstack install --source someone/t3-pstack`",
+      },
+    ]);
+    const local = resolve(repoRoot);
+    expect(doctor(local)[0].fix).toBe(`rerun \`npx -y github:chhoumann/t3-pstack install --source ${local}\``);
+
+    const fork = parseSource("someone/t3-pstack", "/home/u");
+    const home = { harness: "claude", dir: tmp(), from: ["default"], bin: "claude" };
+    const fixes = doctorClaude(home, { ...context, source: fork, trusted: new Set([github.key, fork.key]) })
+      .filter((c) => !c.ok)
+      .map((c) => c.fix);
+    expect(fixes).toEqual(Array(4).fill("rerun `npx -y github:someone/t3-pstack install --source someone/t3-pstack`"));
+  });
+
+  test("leaves a home on chhoumann/t3-pstack where it is, and doctor warns with the commands that switch it", () => {
+    const { dir } = claudeHome();
+    syncScopedRecords(dir);
+    const fork = parseSource("someone/t3-pstack", "/home/u");
+    const forked = { ...context, source: fork, trusted: new Set([github.key, fork.key]) };
+    const claude = fakeClaude();
+    const home = { harness: "claude", dir, from: ["default"], bin: claude.bin };
+    expect(installClaude(home, forked)).toEqual(["turned on marketplace auto-update"]);
+    expect(doctorClaude(home, forked)[0]).toEqual({
+      name: "marketplace",
+      ok: false,
+      warn: true,
+      detail: "chhoumann/t3-pstack, not --source someone/t3-pstack",
+      fix:
+        `to install from someone/t3-pstack, remove it with \`CLAUDE_CONFIG_DIR=${dir} claude plugin marketplace remove t3-pstack\`, ` +
+        "then rerun `npx -y github:someone/t3-pstack install --source someone/t3-pstack`",
+    });
+  });
 });
 
 describe("files the installer replaces", () => {
@@ -369,6 +416,27 @@ describe("codex app-server output that is not JSON-RPC", () => {
     writeFileSync(bin, "#!/bin/sh\necho 'token sk-live-123 expired'\nexec cat >/dev/null\n");
     chmodSync(bin, 0o755);
     await expect(AppServer.start({ dir, bin })).rejects.toThrow(new Error("codex app-server printed a line that is not JSON-RPC"));
+  });
+});
+
+describe("doctor's check of a Codex marketplace's pin", () => {
+  test("passes on this release's tag, and on a local directory, which has no tag", () => {
+    const git = { source_type: "git", source: "https://github.com/chhoumann/t3-pstack.git" };
+    const pin = (marketplace) => pinCheck(marketplace, "v2.2.5", FIX);
+    expect(pin({ ...git, ref: "v2.2.5" })).toEqual({ name: "marketplace pin", ok: true, detail: "v2.2.5" });
+    expect(pin({ source_type: "local", source: "/src/t3-pstack" })).toEqual({
+      name: "marketplace pin",
+      ok: true,
+      detail: "none, since a local directory has no tag",
+    });
+    expect([git, { ...git, ref: "v2.2.3" }, { ...git, ref: "main" }, undefined].map(pin)).toEqual(
+      ["none, expected v2.2.5", "v2.2.3, expected v2.2.5", "main, expected v2.2.5", "no marketplace"].map((detail) => ({
+        name: "marketplace pin",
+        ok: false,
+        detail,
+        fix: FIX,
+      })),
+    );
   });
 });
 
@@ -399,7 +467,7 @@ describe("the model sheet", () => {
     expect(existsSync(join(root, ".claude-never-run"))).toBe(false);
 
     expect(moveSheet(sheet, homes)).toEqual([]);
-    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers })).toEqual([
+    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers, hint: FIX })).toEqual([
       { name: "machine sheet valid", ok: true, detail: "every line parses (pass --catalog to check targets)" },
       { name: "home sheets", ok: true, detail: "none differ from it" },
     ]);
@@ -457,7 +525,7 @@ describe("the model sheet", () => {
 
     expect(moveSheet(sheet, homes)).toEqual([]);
     expect(existsSync(sheet)).toBe(false);
-    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers })).toEqual([
+    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers, hint: FIX })).toEqual([
       {
         name: "machine sheet",
         ok: false,
@@ -479,7 +547,7 @@ describe("the model sheet", () => {
       `linked ${join(root, ".codex-pool/t3-pstack-models.md")} to it`,
     ]);
     expect(lstatSync(join(root, ".codex/t3-pstack-models.md")).isSymbolicLink()).toBe(false);
-    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers })[1]).toEqual({
+    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers, hint: FIX })[1]).toEqual({
       name: "home sheets",
       ok: false,
       detail: `${join(root, ".codex/t3-pstack-models.md")} differ from the machine sheet`,
@@ -489,7 +557,7 @@ describe("the model sheet", () => {
 
   test("doctor warns without a sheet and fails on a malformed one", () => {
     const { homes, sheet } = machine();
-    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers })).toEqual([
+    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers, hint: FIX })).toEqual([
       {
         name: "machine sheet",
         ok: false,
@@ -500,7 +568,7 @@ describe("the model sheet", () => {
     ]);
     mkdirSync(join(sheet, ".."), { recursive: true });
     writeFileSync(sheet, "bug-fix: claude-opus\nhow critics: inherit-parent\n");
-    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers })[0]).toEqual({
+    expect(doctorSheet(sheet, homes, { catalog: null, roles, tiers, hint: FIX })[0]).toEqual({
       name: "machine sheet valid",
       ok: false,
       detail: 'bug-fix: "claude-opus" does not start with <providerInstanceId>/<modelId>; "how critics" is not a pstack role',
