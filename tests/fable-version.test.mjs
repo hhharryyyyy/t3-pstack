@@ -6,7 +6,6 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
-// Covers the model ID, the label, and any other separator between the parts.
 // The pattern does not match its own text, so this file passes.
 const OLDER_FABLE = "fable[^a-z0-9]{0,3}5[^0-9a-z]{0,2}1([^0-9]|$)";
 
