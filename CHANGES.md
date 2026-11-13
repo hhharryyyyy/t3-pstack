@@ -2,6 +2,16 @@
 
 This file is the release changelog, with one `## <version> - <title>` entry per release, newest first. The Cursor-to-T3 rewrite rules live in [`tools/substitutions.json`](tools/substitutions.json), and the [sync boundary](CONTRIBUTING.md#the-sync-boundary) in `CONTRIBUTING.md` defines how a change to upstream's skill content is declared.
 
+## 2.2.8-harry.2 - bro groups a status restatement by who acts and when
+
+`bro` restates the last message in plain words. When that message reported status or listed actions, it now also groups the restatement by who acts and when: do now, later, waiting on others, and blockers. Each item carries its link, whether it can page someone or make noise, and one plain sentence on what it does. Harry asked for that shape four times in one thread before a status came back short and grouped.
+
+The text is an anchored insert in `tools/substitutions.json` scoped to `skills/bro/SKILL.md`, so it keeps upstream's sentence and a later sync of Lauren's `bro` stays mechanical. Regenerated with `bun tools/sync.mjs pstack c742dd6 --bootstrap`, which changed only `bro/SKILL.md`; the dry run at the pin reports no undeclared fork.
+
+On macOS with Bun, `GIT_CONFIG_GLOBAL=/dev/null bun test tests/` passes 567, skips 56, and fails 0, and `bun tools/generate.mjs --check` reports every generated file current. Neither hooks file changes. After the release, run `npx -y github:hhharryyyyy/t3-pstack update --source hhharryyyyy/t3-pstack` on each machine.
+
+This is a patch release.
+
 ## 2.2.8-harry.1 - Upstream 2.2.8 on Harry's fork, with Fable 5.2 as the strongest model
 
 This release merges chhoumann/t3-pstack `v2.2.8` (`f344cb6`) into Harry's fork and moves every Fable reference to Fable 5.2. The fork was on 2.2.2-harry.1, which it cut from upstream 2.2.1, so the entries for 2.2.2 through 2.2.8 below describe everything that arrives from upstream. It syncs nothing from Lauren's pstack, and all three components stay pinned at cursor/plugins `c742dd6`.

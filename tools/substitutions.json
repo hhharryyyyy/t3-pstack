@@ -957,6 +957,12 @@
       "replacement": "hourly schedule_task",
       "rationale": "the plan arms a schedule_task; the checker's marker moves with the template",
       "files": "^skills/poteto-mode/scripts/check-plan\\.(?:mjs|test\\.ts)$"
+    },
+    {
+      "pattern": "like one human talking to another.",
+      "replacement": "like one human talking to another.\n\nWhen that message reported status or listed actions, group it by who acts and when: do now, later, waiting on others, and blockers. Give each item its link, whether it can page someone or make noise, and one plain sentence on what it does.",
+      "rationale": "Harry's fork: four rewrite rounds before a status restatement was short and grouped; bro now defaults to that grouping for status",
+      "files": "^skills/bro/SKILL\\.md$"
     }
   ],
   "denylist": [
